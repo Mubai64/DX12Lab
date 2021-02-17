@@ -11,6 +11,9 @@
 *.userprefs
 
 # Build results
+[Oo]utput/
+[Ll]ibrary/
+[Ii]ntermediate/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
