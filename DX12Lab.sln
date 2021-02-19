@@ -12,6 +12,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Box", "Case\Box\Box.vcxproj
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Case", "Case", "{2234B9F9-1C6B-42BB-9B7C-7308C49B0A8F}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Shape", "Case\Shapes\Shape.vcxproj", "{BE55A789-E8A9-40CB-A6DC-A2FE0B56B273}"
+	ProjectSection(ProjectDependencies) = postProject
+		{834590A7-AF30-4AE9-8CFA-40EE0CA4CA81} = {834590A7-AF30-4AE9-8CFA-40EE0CA4CA81}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -36,12 +41,21 @@ Global
 		{DF8C3388-1DD4-4436-A495-D6CAD3C89F4E}.Release|x64.Build.0 = Release|x64
 		{DF8C3388-1DD4-4436-A495-D6CAD3C89F4E}.Release|x86.ActiveCfg = Release|Win32
 		{DF8C3388-1DD4-4436-A495-D6CAD3C89F4E}.Release|x86.Build.0 = Release|Win32
+		{BE55A789-E8A9-40CB-A6DC-A2FE0B56B273}.Debug|x64.ActiveCfg = Debug|x64
+		{BE55A789-E8A9-40CB-A6DC-A2FE0B56B273}.Debug|x64.Build.0 = Debug|x64
+		{BE55A789-E8A9-40CB-A6DC-A2FE0B56B273}.Debug|x86.ActiveCfg = Debug|Win32
+		{BE55A789-E8A9-40CB-A6DC-A2FE0B56B273}.Debug|x86.Build.0 = Debug|Win32
+		{BE55A789-E8A9-40CB-A6DC-A2FE0B56B273}.Release|x64.ActiveCfg = Release|x64
+		{BE55A789-E8A9-40CB-A6DC-A2FE0B56B273}.Release|x64.Build.0 = Release|x64
+		{BE55A789-E8A9-40CB-A6DC-A2FE0B56B273}.Release|x86.ActiveCfg = Release|Win32
+		{BE55A789-E8A9-40CB-A6DC-A2FE0B56B273}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{DF8C3388-1DD4-4436-A495-D6CAD3C89F4E} = {2234B9F9-1C6B-42BB-9B7C-7308C49B0A8F}
+		{BE55A789-E8A9-40CB-A6DC-A2FE0B56B273} = {2234B9F9-1C6B-42BB-9B7C-7308C49B0A8F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4B1B6624-C634-421F-A032-FDAE6A3315B2}
