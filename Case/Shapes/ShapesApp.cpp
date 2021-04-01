@@ -114,9 +114,9 @@ private:
     XMFLOAT4X4 mView = MathHelper::Identity4x4( );
     XMFLOAT4X4 mProj = MathHelper::Identity4x4( );
 
-    float mTheta = 1.5f*XM_PI;
-    float mPhi = 0.2f*XM_PI;
-    float mRadius = 15.0f;
+    float mTheta = 1.2f*XM_PI;
+    float mPhi = 0.3f*XM_PI;
+    float mRadius = 30.0f;
 
     POINT mLastMousePos;
 };
@@ -781,8 +781,6 @@ void ShapesApp::BuildRenderItems( )
 void ShapesApp::DrawRenderItems( ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems )
 {
     UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize( sizeof( ObjectConstants ) );
-
-    auto objectCB = mCurrFrameResource->ObjectCB->Resource( );
 
     // For each render item...
     for ( size_t i = 0; i < ritems.size( ); ++i )
