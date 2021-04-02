@@ -116,7 +116,7 @@ private:
 
     float mTheta = 1.2f*XM_PI;
     float mPhi = 0.3f*XM_PI;
-    float mRadius = 30.0f;
+    float mRadius = 25.0f;
 
     POINT mLastMousePos;
 };
@@ -520,7 +520,9 @@ void ShapesApp::BuildShadersAndInputLayout( )
     mInputLayout =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "SPECULAR", 0, DXGI_FORMAT_R32_FLOAT, 0, 40, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
     };
 }
 
@@ -589,25 +591,33 @@ void ShapesApp::BuildShapeGeometry( )
     for ( size_t i = 0; i < box.Vertices.size( ); ++i, ++k )
     {
         vertices[k].Pos = box.Vertices[i].Position;
-        vertices[k].Color = XMFLOAT4( DirectX::Colors::DarkGreen );
+        vertices[k].Normal = box.Vertices[i].Normal;
+        vertices[k].Color = XMFLOAT4( DirectX::Colors::Bisque );
+        vertices[k].Specular = 0.1f;
     }
 
     for ( size_t i = 0; i < grid.Vertices.size( ); ++i, ++k )
     {
         vertices[k].Pos = grid.Vertices[i].Position;
+        vertices[k].Normal = grid.Vertices[i].Normal;
         vertices[k].Color = XMFLOAT4( DirectX::Colors::ForestGreen );
+        vertices[k].Specular = 0.0f;
     }
 
     for ( size_t i = 0; i < sphere.Vertices.size( ); ++i, ++k )
     {
         vertices[k].Pos = sphere.Vertices[i].Position;
+        vertices[k].Normal = sphere.Vertices[i].Normal;
         vertices[k].Color = XMFLOAT4( DirectX::Colors::Crimson );
+        vertices[k].Specular = 2.0f;
     }
 
     for ( size_t i = 0; i < cylinder.Vertices.size( ); ++i, ++k )
     {
         vertices[k].Pos = cylinder.Vertices[i].Position;
+        vertices[k].Normal = cylinder.Vertices[i].Normal;
         vertices[k].Color = XMFLOAT4( DirectX::Colors::SteelBlue );
+        vertices[k].Specular = 1.0f;
     }
 
     std::vector<std::uint16_t> indices;
