@@ -7,6 +7,7 @@
 cbuffer cbPerObject : register( b0 )
 {
     float4x4 gWorld;
+    float gSpecularPower;
 };
 
 cbuffer cbPass : register( b1 )
@@ -32,7 +33,6 @@ struct VertexIn
     float3 PosL    : POSITION;
     float3 NormalL : NORMAL;
     float4 Color   : COLOR;
-    float  Specular: SPECULAR;
 };
 
 struct VertexOut
@@ -41,7 +41,6 @@ struct VertexOut
     float4 PosW    : POSITION;
     float4 NormalW : NORMAL;
     float4 Color   : COLOR;
-    float  Specular: SPECULAR;
 };
 
 VertexOut VS( VertexIn vin )
@@ -58,8 +57,6 @@ VertexOut VS( VertexIn vin )
 
     // Just pass vertex color into the pixel shader.
     vout.Color = vin.Color;
-
-    vout.Specular = vin.Specular;
 
     return vout;
 }
@@ -81,7 +78,7 @@ float4 PS( VertexOut pin ) : SV_Target
     float blinnphong = pow( clamp( dot( halfway, pin.NormalW.xyz ), 0.0f, 1.0f ), 20.0f );
     // Final color.
     float4 finalColor = float4( 0.0f, 0.0f, 0.0f, pin.Color.a );
-    finalColor.rgb = ambient + diffuse * lambert * lightColor + diffuse * 0.8f * blinnphong * lightColor * pin.Specular;
+    finalColor.rgb = ambient + diffuse * lambert * lightColor + diffuse * 0.8f * blinnphong * lightColor * gSpecularPower;
     return finalColor;
 }
 

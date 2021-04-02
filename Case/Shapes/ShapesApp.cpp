@@ -26,6 +26,7 @@ struct RenderItem
     // relative to the world space, which defines the position, orientation,
     // and scale of the object in the world.
     XMFLOAT4X4 World = MathHelper::Identity4x4( );
+    float SpecularPower = 1.0f;
 
     // Dirty flag indicating the object data has changed and we need to update the constant buffer.
     // Because we have an object cbuffer for each FrameResource, we have to apply the
@@ -45,6 +46,8 @@ struct RenderItem
     UINT IndexCount = 0;
     UINT StartIndexLocation = 0;
     int BaseVertexLocation = 0;
+
+    bool bTransparent = false;
 };
 
 class ShapesApp : public D3DApp
@@ -103,6 +106,7 @@ private:
 
     // Render items divided by PSO.
     std::vector<RenderItem*> mOpaqueRitems;
+    std::vector<RenderItem*> mTransparentRitems;
 
     PassConstants mMainPassCB;
 
@@ -258,7 +262,15 @@ void ShapesApp::Draw( const GameTimer& gt )
     passCbvHandle.Offset( passCbvIndex, mCbvSrvUavDescriptorSize );
     mCommandList->SetGraphicsRootDescriptorTable( 1, passCbvHandle );
 
+    // Draw opaque render items.
     DrawRenderItems( mCommandList.Get( ), mOpaqueRitems );
+
+    // Reset transparent pso.
+    if ( mIsWireframe == false )
+        mCommandList->SetPipelineState( mPSOs["transparent"].Get( ) );
+
+    // Draw transparent render items.
+    DrawRenderItems( mCommandList.Get( ), mTransparentRitems );
 
     // Indicate a state transition on the resource usage.
     mCommandList->ResourceBarrier( 1, &CD3DX12_RESOURCE_BARRIER::Transition( CurrentBackBuffer( ),
@@ -302,8 +314,8 @@ void ShapesApp::OnMouseMove( WPARAM btnState, int x, int y )
     if ( ( btnState & MK_LBUTTON ) != 0 )
     {
         // Make each pixel correspond to a quarter of a degree.
-        float dx = XMConvertToRadians( 0.25f*static_cast<float>( x - mLastMousePos.x ) );
-        float dy = XMConvertToRadians( 0.25f*static_cast<float>( y - mLastMousePos.y ) );
+        float dx = XMConvertToRadians( -0.25f*static_cast<float>( x - mLastMousePos.x ) );
+        float dy = XMConvertToRadians( -0.25f*static_cast<float>( y - mLastMousePos.y ) );
 
         // Update angles based on input to orbit camera around box.
         mTheta += dx;
@@ -366,6 +378,7 @@ void ShapesApp::UpdateObjectCBs( const GameTimer& gt )
 
             ObjectConstants objConstants;
             XMStoreFloat4x4( &objConstants.World, XMMatrixTranspose( world ) );
+            objConstants.SpecularPower = e->SpecularPower;
 
             currObjectCB->CopyData( e->ObjCBIndex, objConstants );
 
@@ -405,7 +418,7 @@ void ShapesApp::UpdateMainPassCB( const GameTimer& gt )
 
 void ShapesApp::BuildDescriptorHeaps( )
 {
-    UINT objCount = (UINT) mOpaqueRitems.size( );
+    UINT objCount = (UINT) mAllRitems.size( );
 
     // Need a CBV descriptor for each object for each frame resource,
     // +1 for the perPass CBV for each frame resource.
@@ -427,7 +440,7 @@ void ShapesApp::BuildConstantBufferViews( )
 {
     UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize( sizeof( ObjectConstants ) );
 
-    UINT objCount = (UINT) mOpaqueRitems.size( );
+    UINT objCount = (UINT) mAllRitems.size( );
 
     // Need a CBV descriptor for each object for each frame resource.
     for ( int frameIndex = 0; frameIndex < gNumFrameResources; ++frameIndex )
@@ -515,14 +528,13 @@ void ShapesApp::BuildRootSignature( )
 void ShapesApp::BuildShadersAndInputLayout( )
 {
     mShaders["standardVS"] = d3dUtil::CompileShader( L"Shaders\\color.hlsl", nullptr, "VS", "vs_5_1" );
-    mShaders["opaquePS"] = d3dUtil::CompileShader( L"Shaders\\color.hlsl", nullptr, "PS", "ps_5_1" );
+    mShaders["standardPS"] = d3dUtil::CompileShader( L"Shaders\\color.hlsl", nullptr, "PS", "ps_5_1" );
 
     mInputLayout =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "SPECULAR", 0, DXGI_FORMAT_R32_FLOAT, 0, 40, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
     };
 }
 
@@ -593,7 +605,6 @@ void ShapesApp::BuildShapeGeometry( )
         vertices[k].Pos = box.Vertices[i].Position;
         vertices[k].Normal = box.Vertices[i].Normal;
         vertices[k].Color = XMFLOAT4( DirectX::Colors::Bisque );
-        vertices[k].Specular = 0.1f;
     }
 
     for ( size_t i = 0; i < grid.Vertices.size( ); ++i, ++k )
@@ -601,7 +612,6 @@ void ShapesApp::BuildShapeGeometry( )
         vertices[k].Pos = grid.Vertices[i].Position;
         vertices[k].Normal = grid.Vertices[i].Normal;
         vertices[k].Color = XMFLOAT4( DirectX::Colors::ForestGreen );
-        vertices[k].Specular = 0.0f;
     }
 
     for ( size_t i = 0; i < sphere.Vertices.size( ); ++i, ++k )
@@ -609,7 +619,7 @@ void ShapesApp::BuildShapeGeometry( )
         vertices[k].Pos = sphere.Vertices[i].Position;
         vertices[k].Normal = sphere.Vertices[i].Normal;
         vertices[k].Color = XMFLOAT4( DirectX::Colors::Crimson );
-        vertices[k].Specular = 2.0f;
+        vertices[k].Color.w = 0.3f;
     }
 
     for ( size_t i = 0; i < cylinder.Vertices.size( ); ++i, ++k )
@@ -617,7 +627,6 @@ void ShapesApp::BuildShapeGeometry( )
         vertices[k].Pos = cylinder.Vertices[i].Position;
         vertices[k].Normal = cylinder.Vertices[i].Normal;
         vertices[k].Color = XMFLOAT4( DirectX::Colors::SteelBlue );
-        vertices[k].Specular = 1.0f;
     }
 
     std::vector<std::uint16_t> indices;
@@ -674,8 +683,8 @@ void ShapesApp::BuildPSOs( )
     };
     opaquePsoDesc.PS =
     {
-        reinterpret_cast<BYTE*>( mShaders["opaquePS"]->GetBufferPointer( ) ),
-        mShaders["opaquePS"]->GetBufferSize( )
+        reinterpret_cast<BYTE*>( mShaders["standardPS"]->GetBufferPointer( ) ),
+        mShaders["standardPS"]->GetBufferSize( )
     };
     opaquePsoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC( D3D12_DEFAULT );
     opaquePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
@@ -690,7 +699,6 @@ void ShapesApp::BuildPSOs( )
     opaquePsoDesc.DSVFormat = mDepthStencilFormat;
     ThrowIfFailed( md3dDevice->CreateGraphicsPipelineState( &opaquePsoDesc, IID_PPV_ARGS( &mPSOs["opaque"] ) ) );
 
-
     //
     // PSO for opaque wireframe objects.
     //
@@ -698,6 +706,30 @@ void ShapesApp::BuildPSOs( )
     D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueWireframePsoDesc = opaquePsoDesc;
     opaqueWireframePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
     ThrowIfFailed( md3dDevice->CreateGraphicsPipelineState( &opaqueWireframePsoDesc, IID_PPV_ARGS( &mPSOs["opaque_wireframe"] ) ) );
+
+    //
+    // PSO for transparent objects.
+    //
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC transparentPsoDesc = opaquePsoDesc;
+
+    // Disable depth write.
+    transparentPsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+
+    // Enable alpha blend.
+    D3D12_RENDER_TARGET_BLEND_DESC transparentRTBlendDesc;
+    transparentRTBlendDesc.BlendEnable = true;
+    transparentRTBlendDesc.LogicOpEnable = false;
+    transparentRTBlendDesc.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    transparentRTBlendDesc.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+    transparentRTBlendDesc.BlendOp = D3D12_BLEND_OP_ADD;
+    transparentRTBlendDesc.SrcBlendAlpha = D3D12_BLEND_ONE;
+    transparentRTBlendDesc.DestBlendAlpha = D3D12_BLEND_ZERO;
+    transparentRTBlendDesc.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    transparentRTBlendDesc.LogicOp = D3D12_LOGIC_OP_NOOP;
+    transparentRTBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    transparentPsoDesc.BlendState.RenderTarget[0] = transparentRTBlendDesc;
+    ThrowIfFailed( md3dDevice->CreateGraphicsPipelineState( &transparentPsoDesc, IID_PPV_ARGS( &mPSOs["transparent"] ) ) );
 }
 
 void ShapesApp::BuildFrameResources( )
@@ -713,6 +745,7 @@ void ShapesApp::BuildRenderItems( )
 {
     auto boxRitem = std::make_unique<RenderItem>( );
     XMStoreFloat4x4( &boxRitem->World, XMMatrixScaling( 2.0f, 2.0f, 2.0f )*XMMatrixTranslation( 0.0f, 0.5f, 0.0f ) );
+    boxRitem->SpecularPower = 0.5f;
     boxRitem->ObjCBIndex = 0;
     boxRitem->Geo = mGeometries["shapeGeo"].get( );
     boxRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -723,6 +756,7 @@ void ShapesApp::BuildRenderItems( )
 
     auto gridRitem = std::make_unique<RenderItem>( );
     gridRitem->World = MathHelper::Identity4x4( );
+    gridRitem->SpecularPower = 0.0f;
     gridRitem->ObjCBIndex = 1;
     gridRitem->Geo = mGeometries["shapeGeo"].get( );
     gridRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -746,6 +780,7 @@ void ShapesApp::BuildRenderItems( )
         XMMATRIX rightSphereWorld = XMMatrixTranslation( +5.0f, 3.5f, -10.0f + i * 5.0f );
 
         XMStoreFloat4x4( &leftCylRitem->World, rightCylWorld );
+        leftCylRitem->SpecularPower = 1.5f;
         leftCylRitem->ObjCBIndex = objCBIndex++;
         leftCylRitem->Geo = mGeometries["shapeGeo"].get( );
         leftCylRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -754,6 +789,7 @@ void ShapesApp::BuildRenderItems( )
         leftCylRitem->BaseVertexLocation = leftCylRitem->Geo->DrawArgs["cylinder"].BaseVertexLocation;
 
         XMStoreFloat4x4( &rightCylRitem->World, leftCylWorld );
+        rightCylRitem->SpecularPower = 1.5f;
         rightCylRitem->ObjCBIndex = objCBIndex++;
         rightCylRitem->Geo = mGeometries["shapeGeo"].get( );
         rightCylRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -762,20 +798,24 @@ void ShapesApp::BuildRenderItems( )
         rightCylRitem->BaseVertexLocation = rightCylRitem->Geo->DrawArgs["cylinder"].BaseVertexLocation;
 
         XMStoreFloat4x4( &leftSphereRitem->World, leftSphereWorld );
+        leftSphereRitem->SpecularPower = 3.0f;
         leftSphereRitem->ObjCBIndex = objCBIndex++;
         leftSphereRitem->Geo = mGeometries["shapeGeo"].get( );
         leftSphereRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
         leftSphereRitem->IndexCount = leftSphereRitem->Geo->DrawArgs["sphere"].IndexCount;
         leftSphereRitem->StartIndexLocation = leftSphereRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
         leftSphereRitem->BaseVertexLocation = leftSphereRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
+        leftSphereRitem->bTransparent = true;
 
         XMStoreFloat4x4( &rightSphereRitem->World, rightSphereWorld );
+        rightSphereRitem->SpecularPower = 3.0f;
         rightSphereRitem->ObjCBIndex = objCBIndex++;
         rightSphereRitem->Geo = mGeometries["shapeGeo"].get( );
         rightSphereRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
         rightSphereRitem->IndexCount = rightSphereRitem->Geo->DrawArgs["sphere"].IndexCount;
         rightSphereRitem->StartIndexLocation = rightSphereRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
         rightSphereRitem->BaseVertexLocation = rightSphereRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
+        rightSphereRitem->bTransparent = true;
 
         mAllRitems.push_back( std::move( leftCylRitem ) );
         mAllRitems.push_back( std::move( rightCylRitem ) );
@@ -783,9 +823,13 @@ void ShapesApp::BuildRenderItems( )
         mAllRitems.push_back( std::move( rightSphereRitem ) );
     }
 
-    // All the render items are opaque.
     for ( auto& e : mAllRitems )
-        mOpaqueRitems.push_back( e.get( ) );
+    {
+        if ( e->bTransparent )
+            mTransparentRitems.push_back( e.get( ) );
+        else
+            mOpaqueRitems.push_back( e.get( ) );
+    }
 }
 
 void ShapesApp::DrawRenderItems( ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems )
@@ -802,7 +846,7 @@ void ShapesApp::DrawRenderItems( ID3D12GraphicsCommandList* cmdList, const std::
         cmdList->IASetPrimitiveTopology( ri->PrimitiveType );
 
         // Offset to the CBV in the descriptor heap for this object and for this frame resource.
-        UINT cbvIndex = mCurrFrameResourceIndex * (UINT) mOpaqueRitems.size( ) + ri->ObjCBIndex;
+        UINT cbvIndex = mCurrFrameResourceIndex * (UINT) mAllRitems.size( ) + ri->ObjCBIndex;
         auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE( mCbvHeap->GetGPUDescriptorHandleForHeapStart( ) );
         cbvHandle.Offset( cbvIndex, mCbvSrvUavDescriptorSize );
 
